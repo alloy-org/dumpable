@@ -183,9 +183,17 @@ module Dumpable
       value_arrays = Array.wrap(object_or_array).map do |dumpable_object|
         keys.map do |key|
           if @id_padding && key == "id"
-            dump_value_string(dumpable_object[:id] + @id_padding)
+            ActiveRecord::Base.connection.quote(dumpable_object[:id] + @id_padding)
+          elsif (column = dumpable_object.class.columns_hash[key])
+            value = ActiveRecord::Relation::QueryAttribute.new(
+              column.name,
+              dumpable_object.attributes_before_type_cast[key],
+              dumpable_object.class.type_for_attribute(column.name)
+            )
+
+            ActiveRecord::Base.connection.quote(value.value_for_database)
           else
-            dump_value_string(dumpable_object.attributes_before_type_cast[key])
+            raise %{Couldn't find column "#{ key }" for object #{ dumpable_object.inspect }}
           end
         end
       end
@@ -211,13 +219,6 @@ module Dumpable
       result_arrays.map do |array|
         "INSERT INTO #{ object.class.table_name } (#{ sql_keys }) VALUES (#{ array.join("), (") }) #{ "ON CONFLICT (id) DO NOTHING" if @options[:ignore_existing] };"
       end.join("\n")
-    end
-
-    # ---------------------------------------------------------------------------
-    # http://invisipunk.blogspot.com/2008/04/activerecord-raw-insertupdate.html
-    # See also: https://stackoverflow.com/questions/44575106/undefined-method-sanitize-for-activerecordbase
-    def dump_value_string(value)
-      ActiveRecord::Base.connection.quote(value.to_s)
     end
 
     # ---------------------------------------------------------------------------
