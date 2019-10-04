@@ -207,9 +207,9 @@ module Dumpable
         result_arrays.last << value_string
       end
 
-      mysql_keys = keys.map { |key| "`#{ key }`" }.join(", ")
+      sql_keys = keys.map { |key| "'#{ key }'" }.join(", ")
       result_arrays.map do |array|
-        "INSERT INTO #{ object.class.table_name } (#{ mysql_keys }) VALUES (#{ array.join("), (") }) #{ "ON CONFLICT (id) DO NOTHING" if @options[:ignore_existing] };"
+        "INSERT INTO #{ object.class.table_name } (#{ sql_keys }) VALUES (#{ array.join("), (") }) #{ "ON CONFLICT (id) DO NOTHING" if @options[:ignore_existing] };"
       end.join("\n")
     end
 
